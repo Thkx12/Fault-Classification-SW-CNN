@@ -1,0 +1,12 @@
+Baseline vs SW-SGD vs Hybrid CNN comparison
+
+Window-level accuracy by scenario:
+- 2fault_prob: baseline=0.9967, swsgd=0.5636, hybrid=0.9983, delta(hybrid-baseline)=+0.0017, delta(hybrid-swsgd)=+0.4347
+- 3fault_prob: baseline=0.9550, swsgd=0.5363, hybrid=0.9896, delta(hybrid-baseline)=+0.0346, delta(hybrid-swsgd)=+0.4533
+- normal_0Nm_raw: baseline=0.8895, swsgd=0.3213, hybrid=0.4267, delta(hybrid-baseline)=-0.4627, delta(hybrid-swsgd)=+0.1054
+- 5mode_prob: baseline=0.9306, swsgd=0.4757, hybrid=0.8385, delta(hybrid-baseline)=-0.0922, delta(hybrid-swsgd)=+0.3627
+
+Model train/test-set metrics:
+- baseline_v2: test_accuracy=0.8719, test_f1_macro=0.8910
+- swsgd_v2: test_accuracy=0.8462, test_f1_macro=0.7981
+- hybrid_v1: test_accuracy=0.9177, test_f1_macro=0.9117

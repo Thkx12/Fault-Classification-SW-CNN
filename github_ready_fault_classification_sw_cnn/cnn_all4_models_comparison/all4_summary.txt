@@ -1,0 +1,13 @@
+Comparison of 4 CNN models
+
+Window-level accuracy by scenario:
+- 2fault_prob: baseline=0.9967, noisy_only_v3=0.9967, swsgd=0.5636, hybrid=0.9983
+- 3fault_prob: baseline=0.9550, noisy_only_v3=0.8945, swsgd=0.5363, hybrid=0.9896
+- normal_0Nm_raw: baseline=0.8895, noisy_only_v3=0.9743, swsgd=0.3213, hybrid=0.4267
+- 5mode_prob: baseline=0.9306, noisy_only_v3=0.9237, swsgd=0.4757, hybrid=0.8385
+
+Model test metrics:
+- baseline_v2: test_accuracy=0.8719, test_f1_macro=0.8910
+- noisy_only_v3: test_accuracy=0.7151, test_f1_macro=0.7661
+- swsgd_v2: test_accuracy=0.8462, test_f1_macro=0.7981
+- hybrid_v1: test_accuracy=0.9177, test_f1_macro=0.9117

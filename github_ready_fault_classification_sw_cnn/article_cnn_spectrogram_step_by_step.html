@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CNN com Espectrogramas para Diagnostico de Falhas - Relato Experimental</title>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --paper: #ffffff;
+      --ink: #152033;
+      --muted: #4e5c73;
+      --line: #d9e2ef;
+      --accent: #0b5ed7;
+      --accent-soft: #e8f0ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 30%, var(--bg) 100%);
+      color: var(--ink);
+      font: 16px/1.5 "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+    .container {
+      width: min(1180px, 94vw);
+      margin: 24px auto 56px;
+    }
+    .top-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .top-tab {
+      display: inline-block;
+      padding: 9px 14px;
+      border: 1px solid #c9dcff;
+      border-radius: 10px;
+      background: #f6f9ff;
+      color: #0b3d91;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.93rem;
+    }
+    .top-tab:hover {
+      background: #ecf3ff;
+    }
+    .top-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+    .paper {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 10px 28px rgba(10, 35, 80, 0.08);
+      padding: 28px;
+    }
+    h1, h2, h3 { margin: 0 0 10px; line-height: 1.2; }
+    h1 { font-size: 1.9rem; }
+    h2 {
+      margin-top: 26px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--accent-soft);
+      font-size: 1.35rem;
+    }
+    h3 { margin-top: 20px; font-size: 1.08rem; }
+    p { margin: 8px 0; color: var(--muted); }
+    .lead { color: var(--ink); font-weight: 600; }
+    .badge {
+      display: inline-block;
+      background: var(--accent-soft);
+      color: #0b3d91;
+      border: 1px solid #c9dcff;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    .steps {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+    .steps li { margin: 6px 0; color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.one { grid-template-columns: 1fr; }
+    figure {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fcfdff;
+      overflow: hidden;
+    }
+    figure img {
+      width: 100%;
+      display: block;
+      background: #edf2fa;
+    }
+    figcaption {
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      color: #31435f;
+      border-top: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background: #f3f7ff;
+      color: #1d3358;
+    }
+    .small { font-size: 0.88rem; color: #5f6f88; }
+    .code {
+      margin-top: 8px;
+      background: #0f1725;
+      color: #cfe3ff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.86rem;
+      overflow: auto;
+      white-space: pre;
+    }
+    @media (max-width: 980px) {
+      .grid.two { grid-template-columns: 1fr; }
+      .paper { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="top-tabs" aria-label="Navegacao entre abas">
+      <a class="top-tab active" href="./article_cnn_spectrogram_step_by_step.html">Aba 1: Pipeline</a>
+      <a class="top-tab" href="./article_cnn_model_comparison_results.html">Aba 2: Comparacao</a>
+    </nav>
+    <article class="paper">
+      <h1>Pipeline Experimental: Treinamento da CNN com Espectrogramas e Validacao por Sliding Window</h1>
+      <p class="lead">
+        Documento tecnico em formato de artigo cientifico, com descricao passo a passo e evidencias visuais dos testes.
+      </p>
+      <div>
+        <span class="badge">Dominio: Vibracao de motores</span>
+        <span class="badge">Classes: Normal, BPFI, BPFO, Misalign, Unbalance</span>
+        <span class="badge">Modelo: CNN 2D em espectrogramas</span>
+      </div>
+
+      <h2>1. Objetivo</h2>
+      <p>
+        Construir um classificador robusto para modos de falha em sinais de vibracao usando espectrogramas, e validar
+        o comportamento temporal por inferencia em janela deslizante sobre sinais validadores compostos com segmentos
+        de duracao probabilistica.
+      </p>
+
+      <h2>2. Fluxo Metodologico</h2>
+      <ol class="steps">
+        <li>Leitura de sinais <code>.mat</code> e inferencia de rotulo pela nomenclatura do arquivo.</li>
+        <li>Extracao de janelas deslizantes no dominio do tempo (<code>window_size=2048</code>, <code>step=1024</code>).</li>
+        <li>Conversao de cada janela em espectrograma (Hann, <code>nperseg=256</code>, <code>noverlap=128</code>, <code>nfft=256</code>, <code>fmax=3000 Hz</code>).</li>
+        <li>Normalizacao global com estatistica do treino.</li>
+        <li>Treinamento da CNN com balanceamento por <em>WeightedRandomSampler</em> e perda ponderada por classe.</li>
+        <li>Selecao do melhor checkpoint por validacao.</li>
+        <li>Teste em sinais validadores multi-segmento com inferencia em sliding window.</li>
+        <li>Comparacao da segmentacao prevista versus manifesto de ground truth.</li>
+      </ol>
+
+      <div class="code">Fonte do fluxograma: Output/cnn_training_flowchart.md</div>
+
+      <h2>3. Treinamento da CNN</h2>
+      <p class="small">
+        Modelo final utilizado: <code>Output/cnn_spectrogram_fault_classifier_balanced_v2/spectrogram_cnn_model.pt</code>
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Metrica de teste</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Accuracy</td><td>0.8719</td></tr>
+          <tr><td>F1 macro</td><td>0.8910</td></tr>
+          <tr><td>Amostras treino / validacao / teste</td><td>5299 / 874 / 874</td></tr>
+          <tr><td>Shape do espectrograma</td><td>31 x 15 (freq x tempo)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>3.1 Arquitetura da CNN usada</h3>
+      <p>
+        Entrada do modelo: tensor de espectrograma em formato <code>[N, 1, 31, 15]</code>.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Bloco</th>
+            <th>Camadas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Feature block 1</td><td>Conv2d(1,16,k=3,pad=1) + BatchNorm2d(16) + ReLU + MaxPool2d(2)</td></tr>
+          <tr><td>Feature block 2</td><td>Conv2d(16,32,k=3,pad=1) + BatchNorm2d(32) + ReLU + MaxPool2d(2)</td></tr>
+          <tr><td>Feature block 3</td><td>Conv2d(32,64,k=3,pad=1) + BatchNorm2d(64) + ReLU + AdaptiveAvgPool2d((4,4))</td></tr>
+          <tr><td>Classifier</td><td>Flatten + Linear(64*4*4,128) + ReLU + Dropout(0.3) + Linear(128,5)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="grid two">
+        <figure>
+          <img src="./cnn_spectrogram_fault_classifier_balanced_v2/training_curves.png" alt="Curvas de treino da CNN">
+          <figcaption><b>Figura 1.</b> Curvas de perda e acuracia por epoca.</figcaption>
+        </figure>
+        <figure>
+          <img src="./cnn_spectrogram_fault_classifier_balanced_v2/confusion_matrix.png" alt="Matriz de confusao do teste da CNN">
+          <figcaption><b>Figura 2.</b> Matriz de confusao no conjunto de teste.</figcaption>
+        </figure>
+      </div>
+
+      <h2>4. Construcao dos Validadores Probabilisticos</h2>
+      <p>
+        Foram criados sinais sinteticos de validacao com duracao de segmentos aleatoria (lognormal controlada), incluindo
+        transicoes por crossfade e manifesto temporal de ground truth.
+      </p>
+      <div class="grid two">
+        <figure>
+          <img src="./two_fault_validator_signal_probabilistic/validator_two_fault_spectrogram.png" alt="Espectrograma validador 2 falhas">
+          <figcaption><b>Figura 3.</b> Validador probabilistico com 2 modos de falha.</figcaption>
+        </figure>
+        <figure>
+          <img src="./three_fault_validator_signal_probabilistic/validator_three_fault_spectrogram.png" alt="Espectrograma validador 3 falhas">
+          <figcaption><b>Figura 4.</b> Validador probabilistico com 3 modos de falha.</figcaption>
+        </figure>
+      </div>
+      <div class="grid one">
+        <figure>
+          <img src="./five_mode_validator_signal_probabilistic_v2/validator_five_mode_spectrogram.png" alt="Espectrograma validador com 5 modos">
+          <figcaption><b>Figura 5.</b> Validador probabilistico completo com 5 classes (Normal + 4 falhas).</figcaption>
+        </figure>
+      </div>
+
+      <h2>5. Inferencia Sliding Window: Resultados dos Testes</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Teste</th>
+            <th>Window Accuracy</th>
+            <th>N de janelas</th>
+            <th>Erro medio de fronteira (s)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>2-fault probabilistico</td><td>0.9967</td><td>605</td><td>0.0190</td></tr>
+          <tr><td>3-fault probabilistico</td><td>0.9550</td><td>578</td><td>0.0098</td></tr>
+          <tr><td>Normal 0Nm (sem pos-processamento)</td><td>0.8895</td><td>389</td><td>n/a (sem fronteiras GT)</td></tr>
+          <tr><td>Normal 0Nm (pos-processado)</td><td>1.0000</td><td>389</td><td>n/a (sem fronteiras GT)</td></tr>
+          <tr><td>5-modes probabilistico</td><td>0.9306</td><td>1009</td><td>0.0139</td></tr>
+        </tbody>
+      </table>
+
+      <div class="grid two">
+        <figure>
+          <img src="./cnn_spectrogram_sliding_inference_validator_v2_2fault_probabilistic/sliding_window_prediction_timeline.png" alt="Timeline 2 falhas">
+          <figcaption><b>Figura 6.</b> Predicao temporal no validador de 2 falhas.</figcaption>
+        </figure>
+        <figure>
+          <img src="./cnn_spectrogram_sliding_inference_validator_v2_3fault_probabilistic/sliding_window_prediction_timeline.png" alt="Timeline 3 falhas">
+          <figcaption><b>Figura 7.</b> Predicao temporal no validador de 3 falhas.</figcaption>
+        </figure>
+      </div>
+
+      <div class="grid two">
+        <figure>
+          <img src="./article_assets/figure8_normal_raw_no_post.png" alt="Timeline normal 0Nm sem pos processamento">
+          <figcaption><b>Figura 8.</b> Predicao temporal no sinal normal (0Nm) sem pos-processamento.</figcaption>
+        </figure>
+        <figure>
+          <img src="./article_assets/figure9_normal_postprocessed.png" alt="Timeline normal 0Nm pos processado">
+          <figcaption><b>Figura 9.</b> Predicao temporal no sinal normal (0Nm) apos filtro temporal de consistencia.</figcaption>
+        </figure>
+      </div>
+
+      <div class="grid one">
+        <figure>
+          <img src="./cnn_spectrogram_sliding_inference_validator_v2_5mode_probabilistic/sliding_window_prediction_timeline.png" alt="Timeline 5 modos">
+          <figcaption><b>Figura 10.</b> Predicao temporal no validador de 5 modos.</figcaption>
+        </figure>
+      </div>
+
+      <h2>6. Validacao de Segmentacao (GT vs Predito)</h2>
+      <p>
+        As figuras abaixo comparam o manifesto de segmentos (ground truth) com a sequencia prevista pela CNN em sliding window.
+      </p>
+      <div class="grid two">
+        <figure>
+          <img src="./segmentation_validation_images/2fault_probabilistic_v2/segmentation_validation.png" alt="Validacao segmentacao 2 falhas">
+          <figcaption><b>Figura 11.</b> Validacao de segmentacao no cenario 2-fault probabilistico.</figcaption>
+        </figure>
+        <figure>
+          <img src="./segmentation_validation_images/3fault_probabilistic_v2/segmentation_validation.png" alt="Validacao segmentacao 3 falhas">
+          <figcaption><b>Figura 12.</b> Validacao de segmentacao no cenario 3-fault probabilistico.</figcaption>
+        </figure>
+      </div>
+      <div class="grid two">
+        <figure>
+          <img src="./segmentation_validation_images/normal_0Nm_v2/segmentation_validation.png" alt="Validacao segmentacao normal">
+          <figcaption><b>Figura 13.</b> Validacao de segmentacao no cenario Normal 0Nm.</figcaption>
+        </figure>
+        <figure>
+          <img src="./segmentation_validation_images/5mode_probabilistic_v2/segmentation_validation.png" alt="Validacao segmentacao 5 modos">
+          <figcaption><b>Figura 14.</b> Validacao de segmentacao no cenario completo de 5 classes.</figcaption>
+        </figure>
+      </div>
+
+      <h2>7. Sintese Tecnica</h2>
+      <ul class="steps">
+        <li>O balanceamento no treinamento aumentou a sensibilidade para a classe Normal.</li>
+        <li>Nos cenarios multi-falha, a acuracia por janela permaneceu elevada (>= 0.93 no cenario de 5 classes).</li>
+        <li>No cenario Normal, o pos-processamento temporal reduziu deteccoes espurias curtas de Unbalance.</li>
+        <li>Os resultados indicam que a segmentacao temporal da CNN acompanha as transicoes do manifesto de referencia.</li>
+      </ul>
+
+      <h2>8. Reprodutibilidade</h2>
+      <p class="small">
+        Scripts principais: <code>Code/train_cnn_spectrogram_fault_classifier.py</code>,
+        <code>Code/build_two_fault_validator_signal.py</code>,
+        <code>Code/build_three_fault_validator_signal.py</code>,
+        <code>Code/build_five_mode_validator_signal.py</code>,
+        <code>Code/infer_cnn_spectrogram_sliding.py</code>,
+        <code>Code/postprocess_sliding_window_predictions.py</code>,
+        <code>Code/plot_segmentation_validation.py</code>.
+      </p>
+    </article>
+  </div>
+</body>
+</html>

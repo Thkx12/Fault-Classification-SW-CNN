@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comparacao de Modelos CNN - Baseline, Noisy, SW-SGD e Hibrido</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --paper: #ffffff;
+      --ink: #132238;
+      --muted: #465a77;
+      --line: #d7e0ed;
+      --accent: #0f5fd7;
+      --accent-soft: #e8f0ff;
+      --good: #0a7a42;
+      --warn: #a46300;
+      --bad: #b3261e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #eaf1ff 0%, var(--bg) 30%, var(--bg) 100%);
+      color: var(--ink);
+      font: 16px/1.55 "Segoe UI", Arial, sans-serif;
+    }
+    .container {
+      width: min(1180px, 94vw);
+      margin: 24px auto 52px;
+    }
+    .top-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .top-tab {
+      display: inline-block;
+      padding: 9px 14px;
+      border: 1px solid #c9dcff;
+      border-radius: 10px;
+      background: #f6f9ff;
+      color: #0b3d91;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.93rem;
+    }
+    .top-tab:hover {
+      background: #ecf3ff;
+    }
+    .top-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+    .paper {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 10px 28px rgba(10, 35, 80, 0.08);
+      padding: 28px;
+    }
+    h1, h2, h3 { margin: 0 0 10px; line-height: 1.2; }
+    h1 { font-size: 1.85rem; }
+    h2 {
+      margin-top: 24px;
+      border-bottom: 2px solid var(--accent-soft);
+      padding-bottom: 6px;
+      font-size: 1.3rem;
+    }
+    p { margin: 8px 0; color: var(--muted); }
+    .lead { color: var(--ink); font-weight: 600; }
+    .badge {
+      display: inline-block;
+      margin: 0 8px 8px 0;
+      padding: 4px 10px;
+      border: 1px solid #c9dcff;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #0b3d91;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .grid.one { grid-template-columns: 1fr; }
+    figure {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fcfdff;
+      overflow: hidden;
+    }
+    figure img {
+      display: block;
+      width: 100%;
+      background: #eef3fa;
+    }
+    figcaption {
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      color: #2f4463;
+      font-size: 0.9rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background: #f3f7ff;
+      color: #1b3358;
+    }
+    .good { color: var(--good); font-weight: 700; }
+    .warn { color: var(--warn); font-weight: 700; }
+    .bad { color: var(--bad); font-weight: 700; }
+    ul { margin: 10px 0 0; padding-left: 20px; }
+    ul li { margin: 6px 0; color: var(--muted); }
+    .code {
+      margin-top: 10px;
+      background: #101a2b;
+      color: #d6e6ff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: 13px Consolas, "Courier New", monospace;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    @media (max-width: 980px) {
+      .paper { padding: 18px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="top-tabs" aria-label="Navegacao entre abas">
+      <a class="top-tab" href="./article_cnn_spectrogram_step_by_step.html">Aba 1: Pipeline</a>
+      <a class="top-tab active" href="./article_cnn_model_comparison_results.html">Aba 2: Comparacao</a>
+    </nav>
+    <article class="paper">
+      <h1>Comparacao Experimental de 4 CNNs para Classificacao por Espectrograma</h1>
+      <p class="lead">
+        Esta aba documenta a comparacao quantitativa entre quatro configuracoes de treinamento:
+        baseline, somente sintetico ruidoso, somente SW-SGD e hibrido (real + SW-SGD).
+      </p>
+      <div>
+        <span class="badge">Classes: Normal, BPFI, BPFO, Misalign, Unbalance</span>
+        <span class="badge">Avaliacao: Sliding Window</span>
+        <span class="badge">Sinais validadores probabilisticos</span>
+      </div>
+
+      <h2>1. Modelos Comparados</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Modelo</th>
+            <th>Dataset de treino</th>
+            <th>Test Accuracy</th>
+            <th>Test F1 Macro</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>baseline_v2</code></td>
+            <td>Espectrogramas sinteticos ruidosos (config original do artigo)</td>
+            <td>0.8719</td>
+            <td>0.8910</td>
+          </tr>
+          <tr>
+            <td><code>noisy_only_v3</code></td>
+            <td>Somente sinteticos ruidosos (novo treino)</td>
+            <td>0.7151</td>
+            <td>0.7661</td>
+          </tr>
+          <tr>
+            <td><code>swsgd_v2</code></td>
+            <td>Somente sinais sinteticos por SW-SGD</td>
+            <td>0.8462</td>
+            <td>0.7981</td>
+          </tr>
+          <tr>
+            <td><code>hybrid_v1</code></td>
+            <td>Hibrido (real + SW-SGD)</td>
+            <td class="good">0.9177</td>
+            <td class="good">0.9117</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>2. Resultado por Cenario (Window Accuracy)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Cenario</th>
+            <th>baseline_v2</th>
+            <th>noisy_only_v3</th>
+            <th>swsgd_v2</th>
+            <th>hybrid_v1</th>
+            <th>Maior valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2fault_prob</td>
+            <td>0.9967</td>
+            <td>0.9967</td>
+            <td class="bad">0.5636</td>
+            <td class="good">0.9983</td>
+            <td><span class="good">hybrid_v1</span></td>
+          </tr>
+          <tr>
+            <td>3fault_prob</td>
+            <td>0.9550</td>
+            <td>0.8945</td>
+            <td class="bad">0.5363</td>
+            <td class="good">0.9896</td>
+            <td><span class="good">hybrid_v1</span></td>
+          </tr>
+          <tr>
+            <td>normal_0Nm_raw</td>
+            <td>0.8895</td>
+            <td class="good">0.9743</td>
+            <td class="bad">0.3213</td>
+            <td class="warn">0.4267</td>
+            <td><span class="good">noisy_only_v3</span></td>
+          </tr>
+          <tr>
+            <td>5mode_prob</td>
+            <td class="good">0.9306</td>
+            <td>0.9237</td>
+            <td class="bad">0.4757</td>
+            <td class="warn">0.8385</td>
+            <td><span class="good">baseline_v2</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="grid one">
+        <figure>
+          <img src="./cnn_all4_models_comparison/all4_window_accuracy.png" alt="Comparacao de acuracia por janela entre 4 modelos">
+          <figcaption><b>Figura 1.</b> Comparacao da window accuracy nos 4 cenarios de validacao.</figcaption>
+        </figure>
+      </div>
+
+      <h2>3. Analise Tecnica dos Resultados</h2>
+      <ul>
+        <li><b>Hibrido (real + SW-SGD)</b> apresentou os maiores valores em 2fault e 3fault, com ganho em robustez para transicoes entre classes.</li>
+        <li><b>Noisy only v3</b> apresentou maior acuracia no cenario <code>Normal 0Nm</code>, com forte aderencia ao padrao espectral dessa classe.</li>
+        <li><b>Baseline v2</b> manteve o melhor resultado no validador de 5 modos, com comportamento global mais equilibrado.</li>
+        <li><b>SW-SGD only</b> apresentou queda consistente em todos os cenarios avaliados nesta rodada.</li>
+      </ul>
+
+      <h2>4. Sintese dos Achados</h2>
+      <p>
+        A comparacao evidencia comportamentos complementares entre os modelos. O treinamento hibrido elevou o desempenho
+        em cenarios de mistura de falhas, o treinamento ruidoso favoreceu o cenario normal, e o baseline preservou
+        maior estabilidade no cenario completo de cinco classes.
+      </p>
+
+      <h2>5. Exemplos de Espectrogramas (Real, Sintetico, Ruidoso e Validador)</h2>
+      <div class="grid two">
+        <figure>
+          <img src="./0Nm_Normal_spectrogram.png" alt="Espectrograma real 0Nm normal">
+          <figcaption><b>Figura 2.</b> Espectrograma do sinal real (0Nm Normal).</figcaption>
+        </figure>
+        <figure>
+          <img src="./sw_sgd_synthetic_dataset_v2_arp24_aug12_spectrograms/synthetic_only/0Nm_Normal_swsgd_aug00_spectrogram.png" alt="Espectrograma sintetico SW-SGD">
+          <figcaption><b>Figura 3.</b> Espectrograma sintetico gerado por SW-SGD.</figcaption>
+        </figure>
+      </div>
+      <div class="grid two">
+        <figure>
+          <img src="./gaussian_noise_synthetic_batch/spectrograms_snr20/synthetic_only/0Nm_Normal_gauss_snr_20p0dB_spectrogram.png" alt="Espectrograma sintetico ruidoso">
+          <figcaption><b>Figura 4.</b> Espectrograma sintetico com ruido gaussiano (SNR 20 dB).</figcaption>
+        </figure>
+        <figure>
+          <img src="./five_mode_validator_signal_probabilistic_v2/validator_five_mode_spectrogram.png" alt="Espectrograma do sinal validador 5 modos">
+          <figcaption><b>Figura 5.</b> Espectrograma do sinal validador probabilistico (5 modos).</figcaption>
+        </figure>
+      </div>
+
+      <h2>6. Arquivos de Referencia</h2>
+      <div class="code">Output/cnn_all4_models_comparison/all4_window_accuracy.csv
+Output/cnn_all4_models_comparison/all4_train_test_metrics.csv
+Output/cnn_all4_models_comparison/all4_summary.txt
+Output/cnn_all4_models_comparison/all4_window_accuracy.png</div>
+
+      <p>
+        Voltar para o artigo principal:
+        <a href="./article_cnn_spectrogram_step_by_step.html">article_cnn_spectrogram_step_by_step.html</a>
+      </p>
+    </article>
+  </div>
+</body>
+</html>
